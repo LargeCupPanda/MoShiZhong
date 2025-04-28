@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>⏰</title>
+    <style>
+        /* 全局样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: "Noto Sans SC", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+            background-color: white;
+            color: black;
+            overflow: hidden;
+        }
+        
+        /* 容器样式 */
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+            padding: 20px;
+        }
+        
+        /* 时钟部分 */
+        .clock {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        
+        /* 数字时钟样式 */
+        .digital-clock {
+            font-size: min(30vw, 30vh);
+            font-weight: 200;
+            line-height: 1;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+        
+        /* 日期样式 */
+        .date {
+            font-size: min(6vw, 6vh);
+            font-weight: 200;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        /* 模拟时钟样式 */
+        .analog-clock {
+            position: relative;
+            width: min(80vw, 80vh);
+            height: min(80vw, 80vh);
+            border: 1px solid #000;
+            border-radius: 50%;
+            margin: 20px auto;
+        }
+        
+        .hour-hand, .minute-hand, .second-hand {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            background-color: #000;
+        }
+        
+        .hour-hand {
+            width: 1.5%;
+            height: 25%;
+            margin-left: -0.75%;
+        }
+        
+        .minute-hand {
+            width: 1%;
+            height: 40%;
+            margin-left: -0.5%;
+        }
+        
+        .second-hand {
+            width: 0.5%;
+            height: 45%;
+            margin-left: -0.25%;
+            display: none; /* 默认隐藏秒针，省电模式 */
+        }
+        
+        .center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 3%;
+            height: 3%;
+            margin-left: -1.5%;
+            margin-top: -1.5%;
+            background-color: #000;
+            border-radius: 50%;
+        }
+        
+        /* 时钟刻度样式 - 全新设计 */
+        .hour-mark {
+            position: absolute;
+            background-color: #000;
+            transform-origin: center;
+        }
+        
+        /* 设置按钮 */
+        .settings-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: min(4vw, 4vh);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.5s;
+            padding: 10px;
+            z-index: 10;
+        }
+        
+        /* 省电模式指示器 */
+        .power-save-indicator {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: min(3vw, 3vh);
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        /* 设置面板 */
+        .settings-panel {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            z-index: 100;
+            padding: 40px 20px 20px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .settings-panel.visible {
+            opacity: 1;
+        }
+
+        .settings-title {
+            font-size: min(5vw, 5vh);
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 200;
+        }
+        
+        .settings-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: min(5vw, 5vh);
+            cursor: pointer;
+            opacity: 0.5;
+            padding: 10px;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .setting-label {
+            font-size: min(4vw, 4vh);
+            font-weight: 200;
+        }
+
+        .setting-control {
+            background: none;
+            border: none;
+            font-size: min(3.5vw, 3.5vh);
+            text-align: right;
+            padding: 5px;
+            appearance: none;
+            -webkit-appearance: none;
+            color: black;
+        }
+
+        .setting-control:focus {
+            outline: none;
+        }
+        
+        /* 控制面板 */
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .control-btn {
+            background: none;
+            border: none;
+            padding: 10px 15px;
+            margin: 0 5px;
+            font-size: min(3.5vw, 3.5vh);
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        
+        .control-btn:hover {
+            opacity: 1;
+        }
+        
+        /* 切换屏幕提示 */
+        .tap-hint {
+            position: absolute;
+            bottom: 50px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: min(3vw, 3vh);
+            opacity: 0;
+            animation: fadeInOut 5s ease-in-out;
+        }
+        
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            10%, 90% { opacity: 0.5; }
+        }
+        
+        /* 深色模式 */
+        .dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        
+        .dark-mode .analog-clock {
+            border-color: #e0e0e0;
+        }
+        
+        .dark-mode .hour-hand,
+        .dark-mode .minute-hand,
+        .dark-mode .second-hand,
+        .dark-mode .center-dot,
+        .dark-mode .hour-mark {
+            background-color: #e0e0e0;
+        }
+        
+        /* 模拟点击层 - 透明不可见 */
+        .anti-sleep {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="clock">
+            <!-- 数字时钟 -->
+            <div class="digital-clock">
+                <span class="hour-display">00</span>:<span class="minute-display">00</span><span class="second-display">:00</span>
+            </div>
+            
+            <!-- 日期 -->
+            <div class="date">星期一，4月28日</div>
+            
+            <!-- 模拟时钟 -->
+            <div class="analog-clock">
+                <div class="hour-hand"></div>
+                <div class="minute-hand"></div>
+                <div class="second-hand"></div>
+                <div class="center-dot"></div>
+                <!-- 时钟刻度由JS生成 -->
+            </div>
+        </div>
+        
+        <!-- 省电模式指示器 -->
+        <div class="power-save-indicator">省电模式</div>
+        
+        <!-- 设置按钮 -->
+        <button class="settings-btn">⚙</button>
+        
+        <!-- 控制栏 -->
+        <div class="controls">
+            <button class="control-btn fullscreen-btn">全屏</button>
+            <button class="control-btn style-btn">风格</button>
+            <button class="control-btn power-btn">省电</button>
+            <button class="control-btn clock-mode-btn">时钟</button>
+        </div>
+        
+        <!-- 点击提示 -->
+        <div class="tap-hint">点击屏幕可显示/隐藏控制栏</div>
+    </div>
+    
+    <!-- 设置面板 -->
+    <div class="settings-panel">
+        <button class="settings-close">×</button>
+        <h2 class="settings-title">时钟设置</h2>
+        
+        <div class="settings-grid">
+            <div class="setting-item">
+                <label class="setting-label">显示模式</label>
+                <select class="setting-control" id="display-mode">
+                    <option value="analog">模拟时钟</option>
+                    <option value="digital">数字时钟</option>
+                </select>
+            </div>
+            
+            <div class="setting-item">
+                <label class="setting-label">显示秒针</label>
+                <select class="setting-control" id="show-seconds">
+                    <option value="false">隐藏</option>
+                    <option value="true">显示</option>
+                </select>
+            </div>
+            
+            <div class="setting-item">
+                <label class="setting-label">刷新频率</label>
+                <select class="setting-control" id="refresh-rate">
+                    <option value="60">每分钟（超省电）</option>
+                    <option value="30">每30秒（省电）</option>
+                    <option value="1">每秒（标准）</option>
+                </select>
+            </div>
+            
+            <div class="setting-item">
+                <label class="setting-label">自动夜间模式</label>
+                <select class="setting-control" id="auto-night-mode">
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                </select>
+            </div>
+            
+            <div class="setting-item">
+                <label class="setting-label">防锁屏</label>
+                <select class="setting-control" id="prevent-lock">
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 防锁屏隐形层 -->
+    <div class="anti-sleep"></div>
+
+    <script>
+        // 更新时钟显示
+        function updateClock() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            
+            // 更新数字时钟
+            document.querySelector('.hour-display').textContent = hours.toString().padStart(2, '0');
+            document.querySelector('.minute-display').textContent = minutes.toString().padStart(2, '0');
+            
+            const secondDisplay = document.querySelector('.second-display');
+            if (secondDisplay.style.display !== 'none') {
+                secondDisplay.textContent = `:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            // 更新模拟时钟
+            const hourHand = document.querySelector('.hour-hand');
+            const minuteHand = document.querySelector('.minute-hand');
+            const secondHand = document.querySelector('.second-hand');
+            
+            const hourDeg = (hours % 12) * 30 + minutes * 0.5;
+            const minuteDeg = minutes * 6 + seconds * 0.1;
+            const secondDeg = seconds * 6;
+            
+            hourHand.style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
+            minuteHand.style.transform = `translateX(-50%) rotate(${minuteDeg}deg)`;
+            secondHand.style.transform = `translateX(-50%) rotate(${secondDeg}deg)`;
+            
+            // 更新日期
+            const days = ['日', '一', '二', '三', '四', '五', '六'];
+            const dayOfWeek = days[now.getDay()];
+            const month = now.getMonth() + 1;
+            const day = now.getDate();
+            
+            document.querySelector('.date').textContent = `星期${dayOfWeek}，${month}月${day}日`;
+            
+            // 检查是否需要切换夜间模式
+            checkAutoNightMode();
+        }
+        
+        // 初始化模拟时钟刻度 - 匹配新图片的刻度设计
+        function initAnalogClockMarks() {
+            const analogClock = document.querySelector('.analog-clock');
+            const clockRadius = analogClock.offsetWidth / 2;
+            
+            // 清除现有刻度
+            const existingMarks = analogClock.querySelectorAll('.hour-mark');
+            existingMarks.forEach(mark => mark.remove());
+            
+            // 刻度布局
+            for (let i = 0; i < 12; i++) {
+                const mark = document.createElement('div');
+                mark.className = 'hour-mark';
+                
+                // 计算位置
+                const angle = i * 30; // 每个刻度30度
+                const radians = angle * Math.PI / 180;
+                
+                // 计算刻度线的位置和样式
+                let markWidth, markHeight, markRadius;
+                
+                // 3,6,9,12点位置使用水平或垂直线
+                if (i % 3 === 0) {
+                    markWidth = clockRadius * 0.08; // 线长为半径的8%
+                    markHeight = 2; // 2px高
+                    markRadius = clockRadius * 0.85; // 位置在半径的85%处
+                } else {
+                    // 其他位置使用倾斜的短线
+                    markWidth = clockRadius * 0.05; // 线长为半径的5%
+                    markHeight = 1; // 1px高
+                    markRadius = clockRadius * 0.88; // 位置在半径的88%处
+                }
+                
+                // 设置位置
+                const centerX = clockRadius;
+                const centerY = clockRadius;
+                const x = centerX + markRadius * Math.sin(radians);
+                const y = centerY - markRadius * Math.cos(radians);
+                
+                mark.style.left = `${x - markWidth/2}px`;
+                mark.style.top = `${y - markHeight/2}px`;
+                mark.style.width = `${markWidth}px`;
+                mark.style.height = `${markHeight}px`;
+                mark.style.transform = `rotate(${angle + 90}deg)`; // 旋转线条以匹配角度
+                
+                analogClock.appendChild(mark);
+            }
+        }
+        
+        // 显示控制条和UI元素
+        function showUI() {
+            const controls = document.querySelector('.controls');
+            const settingsBtn = document.querySelector('.settings-btn');
+            const powerSaveIndicator = document.querySelector('.power-save-indicator');
+            
+            // 显示所有UI元素
+            controls.style.opacity = '0.6';
+            settingsBtn.style.opacity = '0.5';
+            
+            // 只在省电模式下显示指示器
+            if (document.getElementById('refresh-rate').value !== '1' || 
+                document.getElementById('show-seconds').value === 'false') {
+                powerSaveIndicator.style.opacity = '0.5';
+            }
+            
+            // 5秒后自动隐藏
+            hideUITimer = setTimeout(hideUI, 5000);
+        }
+        
+        // 隐藏控制条和UI元素
+        function hideUI() {
+            const controls = document.querySelector('.controls');
+            const settingsBtn = document.querySelector('.settings-btn');
+            const powerSaveIndicator = document.querySelector('.power-save-indicator');
+            
+            controls.style.opacity = '0';
+            settingsBtn.style.opacity = '0';
+            powerSaveIndicator.style.opacity = '0';
+        }
+        
+        // 切换显示模式
+        function toggleDisplayMode() {
+            const displayMode = document.getElementById('display-mode').value;
+            const digitalClock = document.querySelector('.digital-clock');
+            const analogClock = document.querySelector('.analog-clock');
+            
+            switch(displayMode) {
+                case 'digital':
+                    digitalClock.style.display = 'block';
+                    analogClock.style.display = 'none';
+                    break;
+                case 'analog':
+                    digitalClock.style.display = 'none';
+                    analogClock.style.display = 'block';
+                    break;
+            }
+        }
+        
+        // 切换秒数/秒针显示
+        function toggleSecondsDisplay() {
+            const showSeconds = document.getElementById('show-seconds').value === 'true';
+            const secondHand = document.querySelector('.second-hand');
+            
+            secondHand.style.display = showSeconds ? 'block' : 'none';
+            
+            if (document.getElementById('display-mode').value === 'digital') {
+                const secondDisplay = document.querySelector('.second-display');
+                secondDisplay.style.display = showSeconds ? 'inline' : 'none';
+            }
+            
+            // 更新省电模式指示器
+            updatePowerSaveIndicator();
+        }
+        
+        // 全屏模式切换
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`全屏错误: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+        
+        // 设置面板切换
+        function toggleSettings() {
+            const settingsPanel = document.querySelector('.settings-panel');
+            
+            if (settingsPanel.style.display === 'block') {
+                // 关闭设置
+                settingsPanel.style.opacity = '0';
+                setTimeout(() => {
+                    settingsPanel.style.display = 'none';
+                }, 500);
+            } else {
+                // 打开设置
+                settingsPanel.style.display = 'block';
+                setTimeout(() => {
+                    settingsPanel.style.opacity = '1';
+                }, 10);
+                
+                // 打开设置时清除隐藏UI的计时器
+                clearTimeout(hideUITimer);
+            }
+        }
+        
+        // 样式切换
+        function toggleStyle() {
+            document.body.classList.toggle('dark-mode');
+        }
+        
+        // 省电模式切换
+        function togglePowerSave() {
+            const refreshRate = document.getElementById('refresh-rate');
+            const showSeconds = document.getElementById('show-seconds');
+            
+            if (refreshRate.value === '1') {
+                // 切换到省电模式
+                refreshRate.value = '60';
+                showSeconds.value = 'false';
+            } else {
+                // 切换到标准模式
+                refreshRate.value = '1';
+                showSeconds.value = 'true';
+            }
+            
+            // 应用设置
+            toggleSecondsDisplay();
+            updateRefreshRate();
+            saveSettings();
+        }
+        
+        // 时钟模式切换
+        function toggleClockMode() {
+            const displayMode = document.getElementById('display-mode');
+            
+            if (displayMode.value === 'digital') {
+                displayMode.value = 'analog';
+            } else {
+                displayMode.value = 'digital';
+            }
+            
+            toggleDisplayMode();
+            saveSettings();
+        }
+        
+        // 更新省电模式指示器
+        function updatePowerSaveIndicator() {
+            const refreshRate = parseInt(document.getElementById('refresh-rate').value, 10);
+            const showSeconds = document.getElementById('show-seconds').value === 'true';
+            const indicator = document.querySelector('.power-save-indicator');
+            
+            // 设置显示或隐藏，但不改变opacity（opacity由UI显示/隐藏控制）
+            if (refreshRate > 1 || !showSeconds) {
+                indicator.style.display = 'block';
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+        
+        // 检查并应用自动夜间模式
+        function checkAutoNightMode() {
+            const autoNightMode = document.getElementById('auto-night-mode').value === 'true';
+            
+            if (autoNightMode) {
+                const now = new Date();
+                const hours = now.getHours();
+                
+                // 夜间模式时间范围：19:00 - 7:00
+                const isNightTime = hours >= 19 || hours < 7;
+                
+                // 根据时间自动切换夜间模式
+                if (isNightTime && !document.body.classList.contains('dark-mode')) {
+                    document.body.classList.add('dark-mode');
+                } else if (!isNightTime && document.body.classList.contains('dark-mode')) {
+                    document.body.classList.remove('dark-mode');
+                }
+            }
+        }
+        
+        // 更新刷新频率
+        function updateRefreshRate() {
+            const refreshRate = parseInt(document.getElementById('refresh-rate').value, 10);
+            
+            // 清除现有的刷新计时器
+            clearInterval(clockInterval);
+            
+            // 设置新的刷新频率
+            clockInterval = setInterval(updateClock, refreshRate * 1000);
+            
+            // 对于低频刷新，立即更新一次
+            updateClock();
+            
+            // 更新省电模式指示器
+            updatePowerSaveIndicator();
+        }
+        
+        // 调整时钟刻度尺寸
+        function adjustClockMarkSize() {
+            // 移除旧刻度并重新创建
+            initAnalogClockMarks();
+        }
+        
+        // 保存设置和偏好到本地存储
+        function saveSettings() {
+            const settings = {
+                displayMode: document.getElementById('display-mode').value,
+                refreshRate: document.getElementById('refresh-rate').value,
+                showSeconds: document.getElementById('show-seconds').value,
+                autoNightMode: document.getElementById('auto-night-mode').value,
+                preventLock: document.getElementById('prevent-lock').value,
+                isDarkMode: document.body.classList.contains('dark-mode')
+            };
+            
+            localStorage.setItem('kindleClockSettings', JSON.stringify(settings));
+        }
+        
+        // 从本地存储加载设置
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('kindleClockSettings');
+            
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                
+                document.getElementById('display-mode').value = settings.displayMode || 'analog';
+                document.getElementById('refresh-rate').value = settings.refreshRate || '60';
+                document.getElementById('show-seconds').value = settings.showSeconds || 'false';
+                document.getElementById('auto-night-mode').value = settings.autoNightMode || 'true';
+                document.getElementById('prevent-lock').value = settings.preventLock || 'true';
+                
+                // 应用设置
+                if (settings.isDarkMode) {
+                    document.body.classList.add('dark-mode');
+                }
+                
+                toggleDisplayMode();
+                toggleSecondsDisplay();
+                updateRefreshRate();
+                toggleAntiSleep();
+                // 自动夜间模式检查在updateClock中已经调用
+            }
+        }
+        
+        // 防止锁屏 - 模拟触摸屏幕
+        let antiSleepInterval;
+        
+        function toggleAntiSleep() {
+            const preventLock = document.getElementById('prevent-lock').value === 'true';
+            
+            clearInterval(antiSleepInterval);
+            
+            if (preventLock) {
+                // 每3分钟模拟一次点击操作
+                antiSleepInterval = setInterval(() => {
+                    // 创建并分发一个触摸事件
+                    simulateTouch();
+                    console.log('防锁屏动作已触发');
+                }, 180000); // 3分钟 = 180000毫秒
+            }
+        }
+        
+        // 模拟触摸操作
+        function simulateTouch() {
+            // 使用原生的JS方法创建一个自定义事件
+            try {
+                // 尝试创建一个 TouchEvent
+                const touchEvent = new Event('touchstart', {
+                    bubbles: true,
+                    cancelable: true,
+                });
+                
+                document.querySelector('.anti-sleep').dispatchEvent(touchEvent);
+                
+                // 稍等后模拟触摸结束
+                setTimeout(() => {
+                    const touchEndEvent = new Event('touchend', {
+                        bubbles: true,
+                        cancelable: true,
+                    });
+                    document.querySelector('.anti-sleep').dispatchEvent(touchEndEvent);
+                }, 100);
+            } catch (e) {
+                // 如果 TouchEvent 不支持，尝试使用鼠标事件
+                const clickEvent = new MouseEvent('click', {
+                    view: window,
+                    bubbles: true,
+                    cancelable: true
+                });
+                document.querySelector('.anti-sleep').dispatchEvent(clickEvent);
+            }
+            
+            // 如果可能，尝试模拟翻页操作（向左滑动）
+            try {
+                // 创建一个触摸开始
+                const touchStartEvent = document.createEvent('TouchEvent');
+                touchStartEvent.initTouchEvent('touchstart', true, true);
+                document.querySelector('.anti-sleep').dispatchEvent(touchStartEvent);
+                
+                // 200ms后创建一个触摸结束
+                setTimeout(() => {
+                    const touchEndEvent = document.createEvent('TouchEvent');
+                    touchEndEvent.initTouchEvent('touchend', true, true);
+                    document.querySelector('.anti-sleep').dispatchEvent(touchEndEvent);
+                }, 200);
+            } catch (e) {
+                // 静默失败 - 浏览器可能不支持 initTouchEvent
+                console.log('高级触摸事件不受支持，但基本防锁屏功能应该仍然有效');
+            }
+        }
+        
+        // 初始化
+        let clockInterval;
+        let hideUITimer;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化模拟时钟刻度
+            initAnalogClockMarks();
+            
+            // 加载设置
+            loadSettings();
+            
+            // 默认每分钟更新（省电）
+            if (!clockInterval) {
+                clockInterval = setInterval(updateClock, 60000);
+            }
+            
+            // 初始更新
+            updateClock();
+            
+            // 显示提示
+            setTimeout(() => {
+                const hint = document.createElement('div');
+                hint.className = 'tap-hint';
+                hint.textContent = '点击屏幕显示控制栏';
+                document.querySelector('.container').appendChild(hint);
+                
+                // 初始显示UI几秒，然后自动隐藏
+                showUI();
+            }, 1000);
+            
+            // 绑定事件 - 点击显示UI
+            document.addEventListener('click', function(e) {
+                // 防止点击设置面板内时隐藏UI
+                if (e.target.closest('.settings-panel')) {
+                    return;
+                }
+                
+                // 清除现有计时器
+                clearTimeout(hideUITimer);
+                
+                // 显示UI
+                showUI();
+            });
+            
+            document.querySelector('.settings-btn').addEventListener('click', toggleSettings);
+            document.querySelector('.settings-close').addEventListener('click', function() {
+                // 保存设置
+                saveSettings();
+                // 关闭设置面板
+                toggleSettings();
+                // 恢复UI显示计时器
+                clearTimeout(hideUITimer);
+                hideUITimer = setTimeout(hideUI, 5000);
+            });
+            
+            document.querySelector('.fullscreen-btn').addEventListener('click', toggleFullscreen);
+            document.querySelector('.style-btn').addEventListener('click', function() {
+                toggleStyle();
+                saveSettings();
+            });
+            document.querySelector('.power-btn').addEventListener('click', togglePowerSave);
+            document.querySelector('.clock-mode-btn').addEventListener('click', toggleClockMode);
+            
+            // 监听设置变化
+            document.getElementById('display-mode').addEventListener('change', function() {
+                toggleDisplayMode();
+                saveSettings();
+            });
+            document.getElementById('refresh-rate').addEventListener('change', function() {
+                updateRefreshRate();
+                saveSettings();
+            });
+            document.getElementById('show-seconds').addEventListener('change', function() {
+                toggleSecondsDisplay();
+                saveSettings();
+            });
+            document.getElementById('auto-night-mode').addEventListener('change', function() {
+                saveSettings();
+                // 立即检查并应用自动夜间模式
+                checkAutoNightMode();
+            });
+            document.getElementById('prevent-lock').addEventListener('change', function() {
+                toggleAntiSleep();
+saveSettings();
+            });
+            
+            // 窗口大小变化时调整刻度尺寸
+            window.addEventListener('resize', adjustClockMarkSize);
+            
+            // 尝试保持屏幕唤醒
+            if ('wakeLock' in navigator) {
+                async function requestWakeLock() {
+                    try {
+                        const wakeLock = await navigator.wakeLock.request('screen');
+                        wakeLock.addEventListener('release', () => {
+                            setTimeout(requestWakeLock, 2000);
+                        });
+                    } catch (err) {
+                        console.log(`无法获取唤醒锁: ${err.message}`);
+                    }
+                }
+                requestWakeLock();
+            }
+            
+            // 激活防锁屏功能
+            toggleAntiSleep();
+        });
+        
+        // 禁用默认浏览器手势
+        document.addEventListener('touchstart', function(e) {
+            if (e.target.classList.contains('anti-sleep')) {
+                return; // 允许防锁屏层接收事件
+            }
+            // 允许点击事件
+            e.stopPropagation();
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.classList.contains('anti-sleep')) {
+                return; // 允许防锁屏层接收事件
+            }
+            // 阻止滚动
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
